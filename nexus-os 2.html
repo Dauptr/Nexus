@@ -1,0 +1,3687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS OS v9.0 - Sentient Operating System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --cyan: #00f0ff;
+            --magenta: #ff00aa;
+            --green: #00ff88;
+            --yellow: #fbbf24;
+            --bg: #000001;
+            --card-bg: rgba(0, 20, 30, 0.8);
+            --border: rgba(0, 240, 255, 0.2);
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: var(--bg);
+            color: #e5e7eb;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Boot Screen */
+        .boot-screen {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            background: var(--bg);
+        }
+
+        .boot-screen.hidden {
+            display: none;
+        }
+
+        .boot-logo {
+            font-size: 6rem;
+            font-weight: bold;
+            color: var(--cyan);
+            text-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan), 0 0 40px var(--cyan), 0 0 80px var(--cyan);
+            margin-bottom: 0.5rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .boot-subtitle {
+            font-size: 0.875rem;
+            color: var(--magenta);
+            letter-spacing: 0.3em;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .boot-terminal {
+            width: 320px;
+            height: 144px;
+            background: rgba(0, 10, 20, 0.9);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 3rem;
+            font-size: 0.75rem;
+            overflow: hidden;
+        }
+
+        .boot-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .boot-line.active { color: var(--cyan); }
+        .boot-line.done { color: var(--green); }
+
+        .boot-progress {
+            width: 320px;
+            height: 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+
+        .boot-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            border-radius: 4px;
+            box-shadow: 0 0 15px var(--cyan);
+            transition: width 0.2s;
+        }
+
+        .boot-percent {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 8px;
+        }
+
+        .skip-btn {
+            width: 320px;
+            margin-top: 1rem;
+            padding: 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.5);
+            border-radius: 4px;
+            color: var(--cyan);
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .skip-btn:hover {
+            background: rgba(0, 240, 255, 0.2);
+            transform: scale(1.02);
+        }
+
+        .skip-btn.hidden { display: none; }
+
+        /* Grid Background */
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.05;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 1;
+        }
+
+        /* Canvas for particles */
+        #particleCanvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 12px 24px;
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid rgba(0, 255, 136, 0.5);
+            border-radius: 8px;
+            color: var(--green);
+            font-size: 0.875rem;
+            z-index: 200;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .notification.hidden { display: none; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Init Overlay */
+        .init-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 1, 0.95);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .init-overlay.hidden { display: none; }
+
+        .init-ring {
+            width: 160px;
+            height: 160px;
+            border: 2px solid rgba(0, 240, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 40px rgba(0, 240, 255, 0.3);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .init-ring span {
+            font-size: 3rem;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .init-title {
+            font-size: 1.5rem;
+            color: var(--cyan);
+            text-shadow: 0 0 10px var(--cyan);
+            margin-top: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .init-stage {
+            font-size: 1rem;
+            color: var(--magenta);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .init-progress {
+            width: 320px;
+            height: 12px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 6px;
+            margin-top: 1.5rem;
+            overflow: hidden;
+        }
+
+        .init-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--green));
+            border-radius: 6px;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+            transition: width 0.15s;
+        }
+
+        .init-percent {
+            text-align: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 8px;
+        }
+
+        /* System Active Banner */
+        .system-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            text-align: center;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.15), transparent);
+            border-bottom: 1px solid rgba(0, 255, 136, 0.3);
+            font-size: 0.875rem;
+            color: var(--green);
+            text-shadow: 0 0 10px var(--green);
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .system-banner.hidden { display: none; }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 1, 0.8);
+            backdrop-filter: blur(12px);
+            z-index: 40;
+            transition: margin-top 0.3s;
+        }
+
+        header.has-banner { margin-top: 36px; }
+
+        .header-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--cyan);
+            text-shadow: 0 0 10px var(--cyan);
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .logo:hover { transform: scale(1.05); }
+
+        .logo-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .version-badge {
+            padding: 2px 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--cyan);
+        }
+
+        .status-badge {
+            padding: 2px 8px;
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid rgba(0, 255, 136, 0.5);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--green);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-badge.standby {
+            background: rgba(255, 170, 0, 0.1);
+            border-color: rgba(255, 170, 0, 0.3);
+            color: #ffaa00;
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        nav button {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #9ca3af;
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        nav button:hover { background: rgba(0, 240, 255, 0.1); }
+        nav button.active { 
+            background: rgba(0, 240, 255, 0.1); 
+            color: var(--cyan); 
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .help-btn {
+            padding: 8px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #9ca3af;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .help-btn:hover { background: rgba(0, 240, 255, 0.1); }
+
+        .mobile-menu-btn {
+            display: none;
+            padding: 8px;
+            background: transparent;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .mobile-menu-btn span {
+            display: block;
+            width: 20px;
+            height: 2px;
+            background: var(--cyan);
+            margin-bottom: 4px;
+        }
+
+        .mobile-menu-btn span:last-child { margin-bottom: 0; }
+
+        @media (max-width: 1024px) {
+            nav { display: none; }
+            .mobile-menu-btn { display: block; }
+        }
+
+        .mobile-menu {
+            display: none;
+            border-top: 1px solid var(--border);
+            padding: 16px;
+            background: rgba(0, 0, 1, 0.98);
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .mobile-menu.open { display: grid; }
+
+        .mobile-menu button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 12px 8px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #9ca3af;
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .mobile-menu button.active {
+            background: rgba(0, 240, 255, 0.1);
+            color: var(--cyan);
+        }
+
+        .mobile-menu button span:first-child { font-size: 1.25rem; }
+
+        /* Main Content */
+        main {
+            position: relative;
+            z-index: 20;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 96px 16px 32px;
+            transition: margin-top 0.3s;
+        }
+
+        main.has-banner { padding-top: 128px; }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--cyan) 0%, var(--magenta) 50%, var(--cyan) 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradient 3s ease infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes gradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .hero p {
+            font-size: 1.125rem;
+            color: #9ca3af;
+            max-width: 640px;
+            margin: 0 auto 2rem;
+        }
+
+        .hero-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--cyan), #00a0cc);
+            color: #000;
+            border: none;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.4);
+        }
+
+        .btn-primary:hover { transform: scale(1.05); }
+        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+        .btn-primary.active {
+            background: linear-gradient(135deg, var(--green), #00aa55);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255, 0, 170, 0.5);
+            color: var(--magenta);
+        }
+
+        .btn-outline:hover { 
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 0, 170, 0.3);
+        }
+
+        /* Network Activity */
+        .network-activity {
+            margin-bottom: 2rem;
+            padding: 16px;
+            background: rgba(0, 20, 30, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .network-activity.hidden { display: none; }
+
+        .network-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+        }
+
+        .network-header span:first-child { color: var(--cyan); }
+        .network-header span:last-child { color: #6b7280; }
+
+        .network-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 64px;
+        }
+
+        .network-bar {
+            flex: 1;
+            border-radius: 2px 2px 0 2px;
+            background: linear-gradient(to top, var(--cyan), var(--magenta));
+            transition: height 0.15s;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 4rem;
+        }
+
+        @media (min-width: 768px) {
+            .stats-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .stat-card {
+            padding: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.5s;
+        }
+
+        .stat-card:hover { transform: scale(1.05); }
+        .stat-card.active { border-color: rgba(0, 255, 136, 0.3); box-shadow: 0 0 20px rgba(0, 255, 136, 0.1); }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .stat-icon { font-size: 1.25rem; }
+        .stat-label { font-size: 0.875rem; color: #9ca3af; }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .stat-value.cyan { color: var(--cyan); }
+        .stat-value.magenta { color: var(--magenta); }
+        .stat-value.green { color: var(--green); }
+        .stat-value.yellow { color: var(--yellow); }
+
+        .stat-progress {
+            height: 4px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+
+        .stat-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--cyan), var(--magenta));
+            border-radius: 2px;
+        }
+
+        /* Features Grid */
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--cyan);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 4rem;
+        }
+
+        @media (min-width: 768px) {
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (min-width: 1024px) {
+            .features-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .feature-card {
+            padding: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: scale(1.05) translateY(-8px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover .feature-icon { transform: scale(1.1); }
+
+        .feature-title {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-desc {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--cyan);
+        }
+
+        /* Terminal */
+        .terminal {
+            background: rgba(0, 5, 10, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 4rem;
+        }
+
+        .terminal-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(0, 240, 255, 0.1);
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .terminal-dot:hover { transform: scale(1.1); }
+        .terminal-dot.red { background: #ff5f56; }
+        .terminal-dot.yellow { background: #ffbd2e; }
+        .terminal-dot.green { background: #27ca40; }
+
+        .terminal-title {
+            margin-left: 16px;
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .terminal-body {
+            padding: 16px;
+            font-size: 0.875rem;
+            height: 256px;
+            overflow-y: auto;
+            color: var(--cyan);
+        }
+
+        .terminal-line {
+            margin-bottom: 12px;
+        }
+
+        .terminal-prompt {
+            color: var(--green);
+        }
+
+        .terminal-path { color: #60a5fa; }
+
+        .terminal-output {
+            margin-top: 4px;
+            white-space: pre-wrap;
+            color: #9ca3af;
+        }
+
+        .terminal-input-line {
+            display: flex;
+            align-items: center;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: inherit;
+            font-size: 0.875rem;
+            color: var(--cyan);
+            caret-color: var(--cyan);
+            margin-left: 8px;
+        }
+
+        /* Settings */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .settings-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .settings-card {
+            padding: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .settings-card h3 {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 1rem;
+        }
+
+        .setting-row {
+            margin-bottom: 1rem;
+        }
+
+        .setting-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+        }
+
+        .setting-label span:first-child { color: #9ca3af; }
+        .setting-label span:last-child { color: var(--cyan); }
+
+        .setting-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            appearance: none;
+            background: rgba(0, 240, 255, 0.1);
+            cursor: pointer;
+        }
+
+        .setting-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--cyan);
+            cursor: pointer;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+
+        .toggle-label { font-size: 0.875rem; color: #9ca3af; }
+
+        .toggle {
+            width: 48px;
+            height: 24px;
+            border-radius: 12px;
+            background: rgba(100, 100, 100, 0.3);
+            border: 1px solid rgba(100, 100, 100, 0.5);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .toggle.active {
+            background: rgba(0, 255, 136, 0.3);
+            border-color: rgba(0, 255, 136, 0.5);
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #6b7280;
+            top: 1px;
+            left: 1px;
+            transition: all 0.3s;
+        }
+
+        .toggle.active::after {
+            transform: translateX(24px);
+            background: var(--green);
+            box-shadow: 0 0 10px var(--green);
+        }
+
+        .settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        /* Image Gen */
+        .image-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (min-width: 1024px) {
+            .image-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .image-card {
+            padding: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .image-card h3 {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 1rem;
+        }
+
+        .image-textarea {
+            width: 100%;
+            height: 128px;
+            padding: 16px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.875rem;
+            resize: none;
+            outline: none;
+        }
+
+        .image-textarea:focus {
+            box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.25);
+        }
+
+        .style-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 1rem;
+        }
+
+        .style-btn {
+            padding: 4px 12px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 9999px;
+            color: var(--cyan);
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .style-btn:hover { transform: scale(1.05); }
+        .style-btn.active {
+            background: rgba(0, 240, 255, 0.3);
+            border-color: rgba(0, 240, 255, 0.6);
+        }
+
+        .image-select-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .image-select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 4px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.875rem;
+        }
+
+        .image-error {
+            margin-top: 1rem;
+            padding: 12px;
+            background: rgba(255, 0, 100, 0.1);
+            border: 1px solid rgba(255, 0, 100, 0.3);
+            border-radius: 8px;
+            color: #ff6b6b;
+            font-size: 0.875rem;
+        }
+
+        .image-error.hidden { display: none; }
+
+        .generate-btn {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--magenta), #aa0066);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .generate-btn:hover { transform: scale(1.02); }
+        .generate-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+        .image-preview {
+            aspect-ratio: 1;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px dashed rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-preview-content {
+            text-align: center;
+        }
+
+        .image-preview-content .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .image-preview-content p {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .image-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 1rem;
+        }
+
+        .image-actions button {
+            flex: 1;
+            padding: 8px;
+            background: transparent;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 4px;
+            color: var(--cyan);
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .image-actions button:hover { background: rgba(0, 240, 255, 0.1); }
+        .image-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Chat */
+        .chat-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 1.5rem;
+        }
+
+        .chat-tab {
+            padding: 8px 16px;
+            background: rgba(0, 20, 30, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 8px;
+            color: #9ca3af;
+            font-family: inherit;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .chat-tab.active {
+            background: rgba(0, 240, 255, 0.2);
+            border-color: rgba(0, 240, 255, 0.5);
+            color: var(--cyan);
+        }
+
+        .chat-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 1024px) {
+            .chat-container { grid-template-columns: 256px 1fr; }
+        }
+
+        .chat-contacts {
+            padding: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .contacts-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .contacts-header h3 {
+            font-weight: bold;
+            color: var(--cyan);
+        }
+
+        .online-badge {
+            padding: 2px 8px;
+            background: rgba(0, 255, 136, 0.2);
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            color: var(--green);
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .contact-item:hover { background: rgba(0, 240, 255, 0.1); }
+        .contact-item.active { background: rgba(0, 240, 255, 0.1); }
+
+        .contact-avatar {
+            font-size: 1.5rem;
+        }
+
+        .contact-info {
+            flex: 1;
+        }
+
+        .contact-name {
+            font-size: 0.875rem;
+            color: #fff;
+        }
+
+        .contact-status {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .contact-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+        }
+
+        .contact-dot.away { background: var(--yellow); }
+
+        .chat-window {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .chat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-header-avatar {
+            font-size: 1.5rem;
+        }
+
+        .chat-header-name {
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .chat-header-status {
+            font-size: 0.75rem;
+            color: var(--green);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            max-width: 288px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            color: #e5e7eb;
+        }
+
+        .message.assistant .message-content {
+            background: rgba(0, 240, 255, 0.1);
+        }
+
+        .message.user .message-content {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 12px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 8px;
+            width: fit-content;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: var(--cyan);
+            border-radius: 50%;
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        .typing-indicator span:nth-child(2) { animation-delay: 150ms; }
+        .typing-indicator span:nth-child(3) { animation-delay: 300ms; }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .chat-input-area {
+            padding: 16px;
+            border-top: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.875rem;
+            outline: none;
+        }
+
+        .chat-input:focus {
+            box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.25);
+        }
+
+        .chat-send-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--cyan), #00a0cc);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .chat-send-btn:hover { transform: scale(1.05); }
+        .chat-send-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+        /* AI Lab */
+        .ai-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 1024px) {
+            .ai-grid { grid-template-columns: 2fr 1fr; }
+        }
+
+        .ai-card {
+            padding: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .ai-card h3 {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 1rem;
+        }
+
+        .ai-model-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .ai-select {
+            padding: 8px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 4px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.875rem;
+        }
+
+        .ai-textarea {
+            width: 100%;
+            height: 128px;
+            padding: 16px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.875rem;
+            resize: none;
+            outline: none;
+        }
+
+        .ai-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 1rem;
+        }
+
+        .ai-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .ai-btn-primary {
+            background: linear-gradient(135deg, var(--cyan), #00a0cc);
+            border: none;
+            color: #000;
+        }
+
+        .ai-btn-outline {
+            background: transparent;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: var(--cyan);
+        }
+
+        .ai-btn:hover { transform: scale(1.02); }
+        .ai-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+        .ai-response {
+            min-height: 192px;
+            padding: 16px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            color: #e5e7eb;
+        }
+
+        .ai-response-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 128px;
+            text-align: center;
+        }
+
+        .ai-response-placeholder .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .ai-response-placeholder p {
+            color: #6b7280;
+        }
+
+        .quick-prompts {
+            margin-top: 1rem;
+        }
+
+        .quick-prompts h4 {
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 1rem;
+        }
+
+        .quick-prompt-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            border-radius: 8px;
+            color: #e5e7eb;
+            font-family: inherit;
+            font-size: 0.75rem;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 8px;
+        }
+
+        .quick-prompt-btn:hover { background: rgba(0, 240, 255, 0.1); }
+
+        /* Radio */
+        .radio-player {
+            padding: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .radio-player h3 {
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 1rem;
+        }
+
+        .now-playing {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .station-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(255, 0, 170, 0.2));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+
+        .station-info {
+            flex: 1;
+        }
+
+        .station-name {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .station-country {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .station-live {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 0.75rem;
+        }
+
+        .live-bars {
+            display: flex;
+            gap: 2px;
+        }
+
+        .live-bar {
+            width: 4px;
+            background: var(--cyan);
+            border-radius: 2px;
+            animation: pulse 0.5s ease-in-out infinite;
+        }
+
+        .radio-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .radio-btn {
+            padding: 16px;
+            background: rgba(0, 240, 255, 0.2);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 9999px;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .radio-btn:hover { transform: scale(1.1); }
+        .radio-btn.stop {
+            background: rgba(255, 0, 100, 0.2);
+            border-color: rgba(255, 0, 100, 0.3);
+            color: #ff6b6b;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .volume-control input {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            appearance: none;
+            background: rgba(0, 240, 255, 0.2);
+            cursor: pointer;
+        }
+
+        .station-search {
+            display: flex;
+            gap: 8px;
+            margin-top: 1.5rem;
+        }
+
+        .station-search input {
+            flex: 1;
+            padding: 12px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.875rem;
+            outline: none;
+        }
+
+        .search-btn {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--cyan), #00a0cc);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .genre-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .genre-tag {
+            padding: 4px 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 9999px;
+            color: var(--cyan);
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .genre-tag:hover { transform: scale(1.05); }
+
+        .stations-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 1rem;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        @media (min-width: 768px) {
+            .stations-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .station-card {
+            padding: 12px;
+            background: rgba(0, 10, 20, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+
+        .station-card:hover {
+            background: rgba(0, 240, 255, 0.15);
+            transform: scale(1.02);
+        }
+
+        .station-card.active {
+            box-shadow: 0 0 0 2px var(--cyan);
+        }
+
+        .station-card-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .station-card-name span:first-child { font-size: 1rem; }
+        .station-card-name span:last-child {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .station-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .station-card-meta span {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .station-card-meta .bitrate {
+            padding: 0 4px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 4px;
+            color: var(--cyan);
+        }
+
+        /* Game */
+        .game-canvas-container {
+            position: relative;
+            background: linear-gradient(135deg, #0a0a0a, #1a1a2e);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .game-canvas {
+            width: 100%;
+            display: block;
+        }
+
+        .game-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .game-overlay-content {
+            text-align: center;
+        }
+
+        .game-overlay-content .icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .game-overlay-content p {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .game-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: rgba(0, 20, 40, 0.8);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .game-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .game-toolbar-left span {
+            font-size: 0.875rem;
+            color: var(--cyan);
+        }
+
+        .game-score {
+            padding: 4px 8px;
+            background: rgba(0, 255, 136, 0.1);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--green);
+        }
+
+        .game-toolbar-right {
+            display: flex;
+            gap: 8px;
+        }
+
+        .game-btn {
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .game-btn.play {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid var(--green);
+            color: var(--green);
+        }
+
+        .game-btn.pause {
+            background: rgba(255, 170, 0, 0.2);
+            border: 1px solid var(--yellow);
+            color: var(--yellow);
+        }
+
+        .game-btn.stop {
+            background: rgba(255, 0, 100, 0.2);
+            border: 1px solid #ff6b6b;
+            color: #ff6b6b;
+        }
+
+        .game-btn:hover { transform: scale(1.05); }
+
+        .game-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .hierarchy-card {
+            padding: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .hierarchy-card h3 {
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 12px;
+        }
+
+        .hierarchy-item {
+            width: 100%;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-align: left;
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 4px;
+        }
+
+        .hierarchy-item:hover { background: rgba(0, 240, 255, 0.1); }
+        .hierarchy-item.selected {
+            background: rgba(0, 240, 255, 0.15);
+            box-shadow: 0 0 0 1px var(--cyan);
+        }
+
+        .hierarchy-item.player { color: var(--cyan); }
+        .hierarchy-item.enemy { color: var(--magenta); }
+        .hierarchy-item.coin { color: var(--yellow); }
+
+        .add-object-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .add-object-btn {
+            padding: 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            color: #9ca3af;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .add-object-btn:hover { transform: scale(1.05); }
+
+        .build-card {
+            padding: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .build-card h3 {
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 12px;
+        }
+
+        .build-btn {
+            width: 100%;
+            padding: 8px;
+            background: transparent;
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            color: #9ca3af;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 8px;
+        }
+
+        .build-btn:hover { background: rgba(0, 240, 255, 0.1); }
+
+        /* Systems */
+        .systems-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .systems-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (min-width: 1024px) {
+            .systems-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        .system-card {
+            padding: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .system-card:hover { transform: scale(1.05); }
+
+        .system-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .system-icon { font-size: 2rem; }
+
+        .system-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .system-status.active {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--green);
+        }
+
+        .system-status.standby {
+            background: rgba(255, 170, 0, 0.2);
+            color: var(--yellow);
+        }
+
+        .system-name {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+
+        .system-load {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .system-load-label {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .system-load-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(0, 240, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .system-load-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s;
+        }
+
+        .system-load-fill.low { background: var(--green); }
+        .system-load-fill.medium { background: var(--yellow); }
+        .system-load-fill.high { background: var(--magenta); }
+
+        .system-load-value {
+            font-size: 0.875rem;
+            color: var(--cyan);
+        }
+
+        /* Network */
+        .network-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .network-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .network-card {
+            padding: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .network-card h3 {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 1rem;
+        }
+
+        .connection-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+        }
+
+        .connection-name { font-size: 0.875rem; color: #fff; }
+
+        .connection-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .connection-latency {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .connection-status {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+
+        .connection-status.connected {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--green);
+        }
+
+        .connection-status.standby {
+            background: rgba(255, 170, 0, 0.2);
+            color: var(--yellow);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+
+        .stat-row-label { font-size: 0.875rem; color: #9ca3af; }
+        .stat-row-value { font-size: 0.875rem; }
+        .stat-row-value.in { color: var(--green); }
+        .stat-row-value.out { color: var(--cyan); }
+        .stat-row-value.highlight { color: var(--yellow); }
+
+        /* Footer */
+        footer {
+            position: relative;
+            z-index: 20;
+            border-top: 1px solid var(--border);
+            padding: 2rem 0;
+            margin-top: 4rem;
+            text-align: center;
+        }
+
+        footer p {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        footer p:last-child {
+            font-size: 0.75rem;
+            color: #4b5563;
+            margin-top: 0.5rem;
+        }
+
+        /* Help Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-overlay.hidden { display: none; }
+
+        .modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-content {
+            position: relative;
+            width: 100%;
+            max-width: 896px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            background: rgba(0, 10, 20, 0.98);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 12px;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--cyan);
+        }
+
+        .modal-close {
+            padding: 8px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: #9ca3af;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .modal-close:hover { background: rgba(0, 240, 255, 0.1); }
+
+        .help-section {
+            margin-bottom: 24px;
+        }
+
+        .help-section h3 {
+            font-size: 1.125rem;
+            font-weight: bold;
+            color: var(--cyan);
+            margin-bottom: 12px;
+        }
+
+        .help-section p {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-bottom: 8px;
+        }
+
+        .help-section ul {
+            list-style: disc;
+            padding-left: 24px;
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .help-section li {
+            margin-bottom: 4px;
+        }
+
+        .help-section strong {
+            color: #e5e7eb;
+        }
+
+        .help-tip {
+            padding: 16px;
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .help-tip h3 {
+            color: var(--yellow);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 1px solid rgba(0, 240, 255, 0.2);
+        }
+
+        .modal-footer p {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        /* Hidden */
+        .hidden { display: none !important; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 10, 20, 0.5); }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--cyan), var(--magenta)); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <!-- Boot Screen -->
+    <div id="bootScreen" class="boot-screen">
+        <canvas id="bootCanvas"></canvas>
+        <div class="boot-logo">NEXUS</div>
+        <div class="boot-subtitle">OPERATING SYSTEM v9.0</div>
+        <div class="boot-terminal" id="bootTerminal"></div>
+        <div class="boot-progress">
+            <div class="boot-progress-bar" id="bootProgressBar"></div>
+        </div>
+        <div class="boot-percent" id="bootPercent">0% Complete</div>
+        <button class="skip-btn hidden" id="skipBtn" onclick="skipBoot()">[ SKIP INTRO ]</button>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <canvas id="particleCanvas"></canvas>
+        <div class="grid-bg"></div>
+        
+        <!-- Notification -->
+        <div id="notification" class="notification hidden"></div>
+        
+        <!-- Init Overlay -->
+        <div id="initOverlay" class="init-overlay hidden">
+            <div class="init-ring"><span>🧬</span></div>
+            <h2 class="init-title">INITIALIZING SYSTEM</h2>
+            <p class="init-stage" id="initStage">Scanning Neural Architecture...</p>
+            <div class="init-progress">
+                <div class="init-progress-bar" id="initProgressBar"></div>
+            </div>
+            <div class="init-percent" id="initPercent">0% Complete</div>
+        </div>
+        
+        <!-- System Banner -->
+        <div id="systemBanner" class="system-banner hidden">✓ SYSTEM INITIALIZED - ALL SUBSYSTEMS OPERATIONAL</div>
+        
+        <!-- Header -->
+        <header id="header">
+            <div class="header-content">
+                <div class="logo-badge">
+                    <span class="logo" onclick="navigate('Dashboard')">NEXUS</span>
+                    <span class="version-badge">v9.0</span>
+                    <span id="headerStatus" class="status-badge standby">STANDBY</span>
+                </div>
+                <nav id="nav"></nav>
+                <div class="header-actions">
+                    <button class="help-btn" onclick="showHelpModal()">❓</button>
+                    <div class="status-badge standby" id="statusIndicator">
+                        <span style="width:8px;height:8px;border-radius:50%;background:#ffaa00;animation:pulse 2s infinite;display:inline-block;margin-right:4px;"></span>
+                        <span id="statusText">STANDBY</span>
+                    </div>
+                    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+                        <span></span><span></span><span></span>
+                    </button>
+                </div>
+            </div>
+            <div id="mobileMenu" class="mobile-menu"></div>
+        </header>
+        
+        <!-- Main Content -->
+        <main id="mainContent"></main>
+        
+        <!-- Help Modal -->
+        <div id="helpModal" class="modal-overlay hidden" onclick="hideHelpModal()">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2 class="modal-title">📚 NEXUS OS Documentation</h2>
+                    <button class="modal-close" onclick="hideHelpModal()">✕</button>
+                </div>
+                <div class="help-section">
+                    <h3>🧭 Navigation</h3>
+                    <p>Use the navigation bar at the top to switch between different sections.</p>
+                    <ul>
+                        <li><strong>Dashboard</strong> - System overview and initialization</li>
+                        <li><strong>Image Creation</strong> - AI-powered image generation</li>
+                        <li><strong>Chat</strong> - Neural chat with AI assistant</li>
+                        <li><strong>Radio</strong> - Stream worldwide radio stations</li>
+                        <li><strong>Game Studio</strong> - Play built-in game</li>
+                        <li><strong>AI Lab</strong> - Advanced AI queries</li>
+                        <li><strong>Systems</strong> - Component monitoring</li>
+                        <li><strong>Network</strong> - Connection status</li>
+                        <li><strong>Settings</strong> - Configuration panel</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <h3>⌨️ Terminal Commands</h3>
+                    <ul>
+                        <li><code style="color:var(--cyan)">help</code> - Show available commands</li>
+                        <li><code style="color:var(--cyan)">status</code> - Display system status</li>
+                        <li><code style="color:var(--cyan)">neofetch</code> - System information</li>
+                        <li><code style="color:var(--cyan)">clear</code> - Clear terminal</li>
+                        <li><code style="color:var(--cyan)">about</code> - About NEXUS OS</li>
+                    </ul>
+                </div>
+                <div class="help-tip">
+                    <h3>💡 Pro Tips</h3>
+                    <ul>
+                        <li>Click <strong>Initialize System</strong> to activate all features</li>
+                        <li>Press <strong>Enter</strong> to send chat messages</li>
+                        <li>Generated images are saved in your session</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <p>Powered by NEXUS AI • Neural Network Active</p>
+                    <button class="btn btn-primary" onclick="hideHelpModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const state = {
+            stage: 'boot',
+            bootProgress: 0,
+            bootStage: 0,
+            systemActive: false,
+            isInitializing: false,
+            initProgress: 0,
+            initStage: 0,
+            activeNav: 'Dashboard',
+            mobileMenuOpen: false,
+            settings: {
+                neuralPower: 75,
+                quantumAllocation: 60,
+                memoryCache: 50,
+                biometric: true,
+                quantumEncryption: true,
+                intrusionDetection: true,
+                autoUpdate: false
+            },
+            chatMessages: [{ role: 'assistant', content: 'System ready. How may I assist you?', time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) }],
+            chatInput: '',
+            isChatLoading: false,
+            imagePrompt: '',
+            imageStyle: 'Photorealistic',
+            imageSize: '1024x1024',
+            generatedImage: null,
+            isGeneratingImage: false,
+            imageError: null,
+            recentImages: [],
+            radioSearch: '',
+            radioStations: [],
+            currentStation: null,
+            isRadioPlaying: false,
+            isRadioLoading: false,
+            radioVolume: 75,
+            radioError: null,
+            aiPrompt: '',
+            aiResponse: '',
+            isAiLoading: false,
+            selectedModel: 'GPT-5 Quantum',
+            terminalInput: '',
+            terminalHistory: [{ input: 'welcome', output: 'Welcome to NEXUS OS Terminal. Type "help" for commands.', color: '#00f0ff' }],
+            networkData: Array.from({length:20}, () => Math.random() * 100),
+            systemStats: [
+                { label: 'Neural Processing', value: 94, unit: '%', color: 'cyan', key: 'neural', icon: '🧠' },
+                { label: 'Quantum Memory', value: 12.4, unit: 'TB', color: 'magenta', key: 'quantum', icon: '⚡' },
+                { label: 'AI Sentience', value: 99.7, unit: '%', color: 'green', key: 'ai', icon: '🤖' },
+                { label: 'Network Nodes', value: 2847, unit: '', color: 'yellow', key: 'nodes', icon: '🌐' }
+            ],
+            gameScore: 0,
+            isGamePlaying: false,
+            isBuilding: false,
+            buildProgress: 0,
+            showHelp: false,
+            // API availability - will be checked on startup
+            apiAvailable: null,
+            apiCheckComplete: false,
+            demoMode: false
+        };
+
+        // Check API availability
+        async function checkApiAvailability() {
+            try {
+                const response = await fetch('/api/generate-image', {
+                    method: 'OPTIONS',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                state.apiAvailable = response.ok || response.status === 405; // 405 means endpoint exists but wrong method
+                state.demoMode = !state.apiAvailable;
+            } catch (e) {
+                state.apiAvailable = false;
+                state.demoMode = true;
+            }
+            state.apiCheckComplete = true;
+            return state.apiAvailable;
+        }
+
+        // Boot stages
+        const BOOT_STAGES = [
+            { id: 'bios', label: 'BIOS Initialization' },
+            { id: 'memory', label: 'Neural Memory Calibration' },
+            { id: 'quantum', label: 'Quantum Core Sync' },
+            { id: 'ai', label: 'AI Consciousness Bootstrap' },
+            { id: 'network', label: 'Neural Network Mesh' },
+            { id: 'security', label: 'Security Protocols Active' },
+            { id: 'ready', label: 'System Ready' }
+        ];
+
+        // Init stages
+        const INIT_STAGES = [
+            'Scanning Neural Architecture...',
+            'Quantum Core Synchronization...',
+            'Allocating Neural Pathways...',
+            'Activating AI Subsystems...',
+            'Establishing Mesh Network...',
+            'Enabling Security Matrix...',
+            'Finalizing Initialization...',
+            'System Fully Operational!'
+        ];
+
+        // Navigation
+        const NAV_ITEMS = [
+            { id: 'Dashboard', icon: '📊', label: 'Dashboard' },
+            { id: 'ImageGen', icon: '🎨', label: 'Image' },
+            { id: 'Chat', icon: '💬', label: 'Chat' },
+            { id: 'Radio', icon: '📻', label: 'Radio' },
+            { id: 'Game', icon: '🎮', label: 'Game' },
+            { id: 'AI', icon: '🤖', label: 'AI Lab' },
+            { id: 'Systems', icon: '⚙️', label: 'Systems' },
+            { id: 'Network', icon: '🌐', label: 'Network' },
+            { id: 'Settings', icon: '🔧', label: 'Settings' }
+        ];
+
+        // Commands
+        const COMMANDS = {
+            help: { output: 'Commands: help, status, neofetch, clear, about', color: '#00f0ff' },
+            status: { output: 'System: OPERATIONAL\nCPU: 12% | Memory: 34%\nAI Core: ACTIVE', color: '#00ff88' },
+            neofetch: { output: '\n╔═══════════════════════════════╗\n║     NEXUS OS v9.0            ║\n╠═══════════════════════════════╣\n║  AI Level: Tier 7            ║\n║  Status: OPERATIONAL         ║\n╚═══════════════════════════════╝', color: '#00f0ff' },
+            about: { output: 'NEXUS OS v9.0 - Sentient Operating System\n"The future is sentient."', color: '#00f0ff' },
+            clear: { output: '' }
+        };
+
+        // Boot animation
+        function runBoot() {
+            const totalDuration = 6000;
+            const stageDuration = totalDuration / BOOT_STAGES.length;
+            let elapsed = 0;
+            
+            document.getElementById('skipBtn').classList.remove('hidden');
+            
+            // Check API availability during boot
+            checkApiAvailability();
+            
+            const interval = setInterval(() => {
+                elapsed += 50;
+                state.bootProgress = (elapsed / totalDuration) * 100;
+                state.bootStage = Math.min(Math.floor(elapsed / stageDuration), BOOT_STAGES.length - 1);
+                
+                updateBootUI();
+                
+                if (elapsed >= totalDuration) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        document.getElementById('bootScreen').classList.add('hidden');
+                        document.getElementById('mainApp').classList.remove('hidden');
+                        state.stage = 'dashboard';
+                        initParticles();
+                        render();
+                        
+                        // Show notification about API status
+                        if (state.apiCheckComplete && state.demoMode) {
+                            setTimeout(() => {
+                                showNotification('Demo Mode - Running standalone. Connect to server for AI features.');
+                            }, 500);
+                        }
+                    }, 400);
+                }
+            }, 50);
+        }
+
+        function updateBootUI() {
+            document.getElementById('bootProgressBar').style.width = state.bootProgress + '%';
+            document.getElementById('bootPercent').textContent = Math.round(state.bootProgress) + '% Complete';
+            
+            let html = '';
+            for (let i = 0; i <= state.bootStage; i++) {
+                const isActive = i === state.bootStage;
+                html += `<div class="boot-line ${isActive ? 'active' : 'done'}">
+                    <span>${isActive ? '▸' : '✓'}</span>
+                    <span>${BOOT_STAGES[i].label}</span>
+                    ${isActive ? '<span class="pulse">...</span>' : ''}
+                </div>`;
+            }
+            document.getElementById('bootTerminal').innerHTML = html;
+        }
+
+        function skipBoot() {
+            state.bootProgress = 100;
+            // Check API availability
+            checkApiAvailability();
+            document.getElementById('bootScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            state.stage = 'dashboard';
+            initParticles();
+            render();
+            
+            // Show notification about API status after a short delay
+            setTimeout(() => {
+                if (state.apiCheckComplete && state.demoMode) {
+                    showNotification('Demo Mode - Running standalone. Connect to server for AI features.');
+                }
+            }, 500);
+        }
+
+        // Particles
+        function initParticles() {
+            const canvas = document.getElementById('particleCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            function resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+            
+            const particles = [];
+            for (let i = 0; i < 80; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3,
+                    size: Math.random() * 2 + 0.5,
+                    color: Math.random() > 0.5 ? '#00f0ff' : '#ff00aa',
+                    alpha: Math.random() * 0.5 + 0.2
+                });
+            }
+            
+            function animate() {
+                ctx.fillStyle = 'rgba(0, 0, 1, 0.08)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx *= 0.98;
+                    p.vy *= 0.98;
+                    
+                    if (p.x < 0) p.x = canvas.width;
+                    if (p.x > canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = canvas.height;
+                    if (p.y > canvas.height) p.y = 0;
+                    
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                });
+                
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.03)';
+                ctx.lineWidth = 0.5;
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < 120) {
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // Initialize System
+        function initializeSystem() {
+            if (state.isInitializing || state.systemActive) return;
+            
+            state.isInitializing = true;
+            state.initProgress = 0;
+            state.initStage = 0;
+            
+            document.getElementById('initOverlay').classList.remove('hidden');
+            
+            const totalDuration = 3000;
+            const stageDuration = totalDuration / INIT_STAGES.length;
+            let elapsed = 0;
+            
+            const interval = setInterval(() => {
+                elapsed += 50;
+                state.initProgress = (elapsed / totalDuration) * 100;
+                state.initStage = Math.min(Math.floor(elapsed / stageDuration), INIT_STAGES.length - 1);
+                
+                document.getElementById('initProgressBar').style.width = state.initProgress + '%';
+                document.getElementById('initPercent').textContent = Math.round(state.initProgress) + '% Complete';
+                document.getElementById('initStage').textContent = INIT_STAGES[state.initStage];
+                
+                if (elapsed >= totalDuration) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        state.isInitializing = false;
+                        state.systemActive = true;
+                        document.getElementById('initOverlay').classList.add('hidden');
+                        document.getElementById('systemBanner').classList.remove('hidden');
+                        document.getElementById('header').classList.add('has-banner');
+                        document.getElementById('mainContent').classList.add('has-banner');
+                        document.getElementById('headerStatus').classList.remove('standby');
+                        document.getElementById('headerStatus').classList.add('active');
+                        document.getElementById('headerStatus').textContent = 'ACTIVE';
+                        document.getElementById('statusIndicator').classList.remove('standby');
+                        document.getElementById('statusIndicator').innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:#00ff88;animation:pulse 2s infinite;display:inline-block;margin-right:4px;"></span><span>ONLINE</span>';
+                        showNotification('System initialized successfully!');
+                        startStatsAnimation();
+                        render();
+                    }, 400);
+                }
+            }, 50);
+        }
+
+        // Stats animation
+        function startStatsAnimation() {
+            setInterval(() => {
+                state.systemStats = state.systemStats.map(stat => ({
+                    ...stat,
+                    value: stat.key === 'neural' ? Math.min(100, stat.value + (Math.random() - 0.5) * 2)
+                        : stat.key === 'quantum' ? Math.min(16, stat.value + (Math.random() - 0.5) * 0.3)
+                        : stat.key === 'ai' ? Math.min(100, stat.value + (Math.random() - 0.5) * 0.1)
+                        : Math.floor(stat.value + (Math.random() - 0.5) * 30)
+                }));
+                state.networkData = Array.from({length:20}, () => Math.random() * 100);
+                renderStats();
+                renderNetworkBars();
+            }, 800);
+        }
+
+        // Notification
+        function showNotification(message) {
+            const el = document.getElementById('notification');
+            el.textContent = '✓ ' + message;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+
+        // Navigation
+        function navigate(id) {
+            state.activeNav = id;
+            state.mobileMenuOpen = false;
+            document.getElementById('mobileMenu').classList.remove('open');
+            render();
+        }
+
+        function toggleMobileMenu() {
+            state.mobileMenuOpen = !state.mobileMenuOpen;
+            document.getElementById('mobileMenu').classList.toggle('open', state.mobileMenuOpen);
+        }
+
+        // Settings
+        function updateSetting(key, value) {
+            state.settings[key] = value;
+            render();
+        }
+
+        function resetSettings() {
+            state.settings = { neuralPower: 75, quantumAllocation: 60, memoryCache: 50, biometric: true, quantumEncryption: true, intrusionDetection: true, autoUpdate: false };
+            showNotification('Settings reset to defaults');
+            render();
+        }
+
+        function saveSettings() {
+            showNotification('Settings saved successfully!');
+        }
+
+        // Terminal
+        function handleTerminalCommand(cmd) {
+            const command = cmd.toLowerCase().trim();
+            const result = COMMANDS[command];
+            
+            if (command === 'clear') {
+                state.terminalHistory = [];
+            } else if (result) {
+                state.terminalHistory.push({ input: cmd, output: result.output, color: result.color });
+            } else {
+                state.terminalHistory.push({ input: cmd, output: `Command not found: ${cmd}\nType "help" for commands.`, color: '#ff5f56' });
+            }
+            state.terminalInput = '';
+            render();
+        }
+
+        // Image Generation
+        async function generateImage() {
+            if (!state.imagePrompt.trim()) {
+                state.imageError = 'Please enter a prompt';
+                render();
+                return;
+            }
+            
+            state.isGeneratingImage = true;
+            state.imageError = null;
+            render();
+            
+            // Demo mode - generate a simulated image using canvas
+            if (state.demoMode || !state.apiAvailable) {
+                try {
+                    // Simulate loading delay
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    
+                    // Generate a canvas-based placeholder image
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512;
+                    canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Create gradient background based on style
+                    const gradients = {
+                        'Photorealistic': ['#1a1a2e', '#16213e', '#0f3460'],
+                        'Anime': ['#ff6b9d', '#c44569', '#f8b500'],
+                        '3D Render': ['#00d9ff', '#0066ff', '#6600ff'],
+                        'Digital Art': ['#ff00ff', '#00ffff', '#ffff00'],
+                        'Oil Painting': ['#8b4513', '#d2691e', '#f4a460'],
+                        'Watercolor': ['#add8e6', '#90ee90', '#ffb6c1']
+                    };
+                    const colors = gradients[state.imageStyle] || gradients['Photorealistic'];
+                    
+                    const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+                    gradient.addColorStop(0, colors[0]);
+                    gradient.addColorStop(0.5, colors[1]);
+                    gradient.addColorStop(1, colors[2]);
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, 512, 512);
+                    
+                    // Add abstract shapes
+                    for (let i = 0; i < 20; i++) {
+                        ctx.beginPath();
+                        ctx.arc(
+                            Math.random() * 512,
+                            Math.random() * 512,
+                            Math.random() * 80 + 20,
+                            0, Math.PI * 2
+                        );
+                        ctx.fillStyle = `rgba(${Math.random()*255|0}, ${Math.random()*255|0}, ${Math.random()*255|0}, 0.3)`;
+                        ctx.fill();
+                    }
+                    
+                    // Add text overlay
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.fillRect(0, 420, 512, 92);
+                    ctx.fillStyle = '#00f0ff';
+                    ctx.font = 'bold 14px monospace';
+                    ctx.fillText('DEMO MODE - Connect to server for AI', 20, 445);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px monospace';
+                    const displayPrompt = state.imagePrompt.length > 50 ? state.imagePrompt.substring(0, 50) + '...' : state.imagePrompt;
+                    ctx.fillText(`"${displayPrompt}"`, 20, 470);
+                    ctx.fillText(`Style: ${state.imageStyle}`, 20, 490);
+                    
+                    // Convert to data URL
+                    const dataUrl = canvas.toDataURL('image/png');
+                    state.generatedImage = dataUrl;
+                    state.recentImages.unshift({ prompt: state.imagePrompt, image: dataUrl });
+                    state.recentImages = state.recentImages.slice(0, 5);
+                    
+                } catch (err) {
+                    state.imageError = 'Demo generation failed: ' + err.message;
+                }
+                
+                state.isGeneratingImage = false;
+                render();
+                return;
+            }
+            
+            // Real API mode
+            try {
+                const response = await fetch('/api/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: state.imagePrompt + ', ' + state.imageStyle.toLowerCase() + ' style', 
+                        size: state.imageSize 
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success && data.image) {
+                    state.generatedImage = data.image;
+                    state.recentImages.unshift({ prompt: state.imagePrompt, image: data.image });
+                    state.recentImages = state.recentImages.slice(0, 5);
+                } else {
+                    state.imageError = data.error || 'Generation failed';
+                }
+            } catch (err) {
+                state.imageError = 'Connection error. Server may be unavailable.';
+                // Switch to demo mode on connection failure
+                state.demoMode = true;
+            }
+            
+            state.isGeneratingImage = false;
+            render();
+        }
+
+        // Chat
+        async function sendChatMessage() {
+            if (!state.chatInput.trim() || state.isChatLoading) return;
+            
+            const userMessage = state.chatInput.trim();
+            state.chatMessages.push({ 
+                role: 'user', 
+                content: userMessage, 
+                time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) 
+            });
+            state.chatInput = '';
+            state.isChatLoading = true;
+            render();
+            
+            // Demo mode response
+            if (state.demoMode || !state.apiAvailable) {
+                await new Promise(resolve => setTimeout(resolve, 800));
+                const demoResponses = [
+                    "I'm running in demo mode. Connect to the Next.js server for full AI capabilities!",
+                    "Demo mode active. I can simulate responses but for real AI power, please connect to a backend server.",
+                    "This is a simulated response. In full mode, I'd have access to advanced AI models.",
+                    "Running standalone! For real neural processing, connect to the server at localhost:3000."
+                ];
+                state.chatMessages.push({ 
+                    role: 'assistant', 
+                    content: demoResponses[Math.floor(Math.random() * demoResponses.length)], 
+                    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) 
+                });
+                state.isChatLoading = false;
+                render();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: state.chatMessages.map(m => ({ role: m.role, content: m.content })) })
+                });
+                const data = await response.json();
+                
+                state.chatMessages.push({ 
+                    role: 'assistant', 
+                    content: data.message || 'Connection error', 
+                    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) 
+                });
+            } catch {
+                state.chatMessages.push({ 
+                    role: 'assistant', 
+                    content: 'Connection issue. Server may be unavailable.', 
+                    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) 
+                });
+                state.demoMode = true;
+            }
+            
+            state.isChatLoading = false;
+            render();
+        }
+
+        // Radio
+        async function searchRadio(query) {
+            state.isRadioLoading = true;
+            state.radioError = null;
+            render();
+            
+            // Demo mode - show sample stations
+            if (state.demoMode || !state.apiAvailable) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                state.radioStations = [
+                    { id: 'demo1', name: 'Demo Jazz Radio', url: '', favicon: '', country: 'Demo', bitrate: 128 },
+                    { id: 'demo2', name: 'Demo Rock Station', url: '', favicon: '', country: 'Demo', bitrate: 192 },
+                    { id: 'demo3', name: 'Demo Classical', url: '', favicon: '', country: 'Demo', bitrate: 256 },
+                    { id: 'demo4', name: 'Demo Electronic', url: '', favicon: '', country: 'Demo', bitrate: 128 },
+                    { id: 'demo5', name: 'Demo Pop Hits', url: '', favicon: '', country: 'Demo', bitrate: 160 },
+                    { id: 'demo6', name: 'Demo News Talk', url: '', favicon: '', country: 'Demo', bitrate: 96 }
+                ];
+                state.radioError = null;
+                state.isRadioLoading = false;
+                render();
+                return;
+            }
+            
+            try {
+                let url = '/api/radio?limit=30';
+                if (query) url = `/api/radio?tag=${encodeURIComponent(query)}&limit=30`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success && data.stations?.length > 0) {
+                    state.radioStations = data.stations;
+                } else {
+                    state.radioError = 'No stations found';
+                    state.radioStations = [];
+                }
+            } catch {
+                state.radioError = 'Search failed. Server may be unavailable.';
+                state.radioStations = [];
+                state.demoMode = true;
+            }
+            
+            state.isRadioLoading = false;
+            render();
+        }
+
+        function playStation(station) {
+            if (state.demoMode || !state.apiAvailable) {
+                showNotification('Demo mode: Radio streaming requires server connection');
+                return;
+            }
+            
+            if (state.audio) {
+                state.audio.pause();
+                state.audio = null;
+            }
+            
+            state.currentStation = station;
+            state.isRadioLoading = true;
+            render();
+            
+            const audio = new Audio(station.url);
+            audio.volume = state.radioVolume / 100;
+            state.audio = audio;
+            
+            audio.oncanplay = () => {
+                audio.play();
+                state.isRadioPlaying = true;
+                state.isRadioLoading = false;
+                render();
+            };
+            
+            audio.onerror = () => {
+                state.radioError = 'Failed to play station';
+                state.isRadioPlaying = false;
+                state.isRadioLoading = false;
+                render();
+            };
+        }
+
+        // AI
+        async function sendAiRequest() {
+            if (!state.aiPrompt.trim() || state.isAiLoading) return;
+            
+            state.isAiLoading = true;
+            state.aiResponse = '';
+            render();
+            
+            // Demo mode response
+            if (state.demoMode || !state.apiAvailable) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                state.aiResponse = `DEMO MODE RESPONSE\n\nYour prompt: "${state.aiPrompt}"\n\nI'm running in standalone demo mode. For real AI processing with advanced models like GPT-5 Quantum, please:\n\n1. Run the Next.js server: bun run dev\n2. Open http://localhost:3000 in your browser\n3. The AI features will connect to the backend automatically\n\nIn full mode, I would provide detailed, contextual responses powered by neural networks.`;
+                state.isAiLoading = false;
+                render();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        messages: [{ role: 'user', content: state.aiPrompt }],
+                        systemPrompt: { role: 'system', content: `You are ${state.selectedModel}. Provide detailed, technical responses.` }
+                    })
+                });
+                const data = await response.json();
+                state.aiResponse = data.message || 'Unable to get response';
+            } catch {
+                state.aiResponse = 'Connection error. Server may be unavailable.';
+                state.demoMode = true;
+            }
+            
+            state.isAiLoading = false;
+            render();
+        }
+
+        // Game
+        function startGame() {
+            state.isGamePlaying = true;
+            state.gameScore = 0;
+            render();
+            runGame();
+        }
+
+        function stopGame() {
+            state.isGamePlaying = false;
+            state.gameScore = 0;
+            render();
+        }
+
+        function runGame() {
+            const canvas = document.getElementById('gameCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            let playerX = 200, playerY = 150, playerVY = 0;
+            let enemyX = 400, enemyDir = 1;
+            let coins = [{x:300, y:200, c:false}, {x:450, y:180, c:false}];
+            const keys = {};
+            
+            const keydown = e => keys[e.code] = true;
+            const keyup = e => keys[e.code] = false;
+            window.addEventListener('keydown', keydown);
+            window.addEventListener('keyup', keyup);
+            
+            function gameLoop() {
+                if (!state.isGamePlaying) {
+                    window.removeEventListener('keydown', keydown);
+                    window.removeEventListener('keyup', keyup);
+                    return;
+                }
+                
+                // Clear
+                ctx.fillStyle = '#0a0a0a';
+                ctx.fillRect(0, 0, 600, 280);
+                
+                // Grid
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.1)';
+                for (let x = 0; x < 600; x += 40) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 280); ctx.stroke();
+                }
+                for (let y = 0; y < 280; y += 40) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(600, y); ctx.stroke();
+                }
+                
+                // Player movement
+                if (keys['ArrowLeft'] || keys['KeyA']) playerX -= 4;
+                if (keys['ArrowRight'] || keys['KeyD']) playerX += 4;
+                if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && playerY >= 150) playerVY = -8;
+                
+                playerVY += 0.4;
+                playerY += playerVY;
+                if (playerY > 200) { playerY = 200; playerVY = 0; }
+                playerX = Math.max(20, Math.min(580, playerX));
+                
+                // Ground
+                ctx.fillStyle = '#00ff88';
+                ctx.fillRect(0, 240, 600, 40);
+                
+                // Player
+                ctx.fillStyle = '#00f0ff';
+                ctx.shadowColor = '#00f0ff';
+                ctx.shadowBlur = 10;
+                ctx.fillRect(playerX - 15, playerY - 30, 30, 50);
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(playerX - 8, playerY - 20, 6, 6);
+                ctx.fillRect(playerX + 2, playerY - 20, 6, 6);
+                
+                // Enemy
+                enemyX += enemyDir * 2;
+                if (enemyX > 550 || enemyX < 100) enemyDir *= -1;
+                ctx.fillStyle = '#ff00aa';
+                ctx.shadowColor = '#ff00aa';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(enemyX, 240, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Coins
+                coins.forEach(coin => {
+                    if (!coin.c) {
+                        const dx = playerX - coin.x, dy = playerY - 50 - coin.y;
+                        if (Math.sqrt(dx*dx + dy*dy) < 30) {
+                            coin.c = true;
+                            state.gameScore += 10;
+                            render();
+                        }
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.beginPath();
+                        ctx.arc(coin.x, coin.y + 50, 12, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+                
+                // Score
+                ctx.fillStyle = '#00f0ff';
+                ctx.font = '14px monospace';
+                ctx.fillText('Score: ' + state.gameScore, 20, 25);
+                ctx.fillText('Arrow Keys/WASD: Move, Space: Jump', 20, 270);
+                
+                requestAnimationFrame(gameLoop);
+            }
+            
+            gameLoop();
+        }
+
+        function buildGame(platform) {
+            state.isBuilding = true;
+            state.buildProgress = 0;
+            render();
+            
+            const interval = setInterval(() => {
+                state.buildProgress += 10;
+                render();
+                if (state.buildProgress >= 100) {
+                    clearInterval(interval);
+                    state.isBuilding = false;
+                    showNotification(platform + ' build complete!');
+                    render();
+                }
+            }, 200);
+        }
+
+        // Help Modal
+        function showHelpModal() {
+            document.getElementById('helpModal').classList.remove('hidden');
+        }
+
+        function hideHelpModal() {
+            document.getElementById('helpModal').classList.add('hidden');
+        }
+
+        // Render functions
+        function render() {
+            renderNav();
+            renderMobileMenu();
+            renderContent();
+        }
+
+        function renderNav() {
+            document.getElementById('nav').innerHTML = NAV_ITEMS.slice(0, 6).map(item => 
+                `<button class="${state.activeNav === item.id ? 'active' : ''}" onclick="navigate('${item.id}')">
+                    <span>${item.icon}</span><span class="hidden xl:inline">${item.label}</span>
+                </button>`
+            ).join('');
+        }
+
+        function renderMobileMenu() {
+            document.getElementById('mobileMenu').innerHTML = NAV_ITEMS.map(item => 
+                `<button class="${state.activeNav === item.id ? 'active' : ''}" onclick="navigate('${item.id}')">
+                    <span>${item.icon}</span><span>${item.label}</span>
+                </button>`
+            ).join('');
+        }
+
+        function renderContent() {
+            const content = document.getElementById('mainContent');
+            
+            switch (state.activeNav) {
+                case 'Dashboard': content.innerHTML = renderDashboard(); break;
+                case 'ImageGen': content.innerHTML = renderImageGen(); break;
+                case 'Chat': content.innerHTML = renderChat(); break;
+                case 'Radio': content.innerHTML = renderRadio(); break;
+                case 'Game': content.innerHTML = renderGame(); break;
+                case 'AI': content.innerHTML = renderAI(); break;
+                case 'Systems': content.innerHTML = renderSystems(); break;
+                case 'Network': content.innerHTML = renderNetwork(); break;
+                case 'Settings': content.innerHTML = renderSettings(); break;
+                default: content.innerHTML = renderDashboard();
+            }
+        }
+
+        function renderStats() {
+            const statsEl = document.getElementById('statsGrid');
+            if (!statsEl) return;
+            statsEl.innerHTML = state.systemStats.map((stat, i) => `
+                <div class="stat-card ${state.systemActive ? 'active' : ''}">
+                    <div class="stat-header">
+                        <span class="stat-icon">${stat.icon}</span>
+                        <span class="stat-label">${stat.label}</span>
+                    </div>
+                    <div class="stat-value ${stat.color}" style="${state.systemActive ? 'text-shadow: 0 0 15px currentColor' : ''}">
+                        ${typeof stat.value === 'number' && stat.value < 100 ? stat.value.toFixed(stat.value % 1 !== 0 ? 1 : 0) : Math.round(stat.value).toLocaleString()}
+                        ${stat.unit ? `<span style="font-size:0.75rem;color:#6b7280">${stat.unit}</span>` : ''}
+                    </div>
+                    <div class="stat-progress">
+                        <div class="stat-progress-bar" style="width:${typeof stat.value === 'number' && stat.value < 100 ? stat.value : 100}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderNetworkBars() {
+            const barsEl = document.getElementById('networkBars');
+            if (!barsEl) return;
+            barsEl.innerHTML = state.networkData.map(v => 
+                `<div class="network-bar" style="height:${v}%"></div>`
+            ).join('');
+        }
+
+        function renderDashboard() {
+            return `
+                <section class="hero">
+                    <h1>${state.systemActive ? 'System Online' : 'Welcome to NEXUS OS'}</h1>
+                    <p>${state.systemActive 
+                        ? 'All quantum neural pathways are active. The system is fully operational and ready for commands.' 
+                        : "The world's first sentient operating system. Powered by quantum computing and self-evolving neural networks."}</p>
+                    <div class="hero-buttons">
+                        <button class="btn btn-primary ${state.systemActive ? 'active' : ''}" 
+                            onclick="initializeSystem()" 
+                            ${state.isInitializing || state.systemActive ? 'disabled' : ''}>
+                            ${state.isInitializing ? 'INITIALIZING...' : state.systemActive ? '✓ SYSTEM ACTIVE' : 'Initialize System'}
+                        </button>
+                        <button class="btn btn-outline">View Documentation</button>
+                    </div>
+                </section>
+                
+                ${state.systemActive ? `
+                <section class="network-activity">
+                    <div class="network-header">
+                        <span>Network Activity</span>
+                        <span>Real-time</span>
+                    </div>
+                    <div class="network-bars" id="networkBars">
+                        ${state.networkData.map(v => `<div class="network-bar" style="height:${v}%"></div>`).join('')}
+                    </div>
+                </section>
+                ` : ''}
+                
+                <section class="stats-grid" id="statsGrid">
+                    ${state.systemStats.map(stat => `
+                        <div class="stat-card ${state.systemActive ? 'active' : ''}">
+                            <div class="stat-header">
+                                <span class="stat-icon">${stat.icon}</span>
+                                <span class="stat-label">${stat.label}</span>
+                            </div>
+                            <div class="stat-value ${stat.color}">
+                                ${typeof stat.value === 'number' && stat.value < 100 ? stat.value.toFixed(stat.value % 1 !== 0 ? 1 : 0) : Math.round(stat.value).toLocaleString()}
+                                ${stat.unit ? `<span style="font-size:0.75rem;color:#6b7280">${stat.unit}</span>` : ''}
+                            </div>
+                            <div class="stat-progress">
+                                <div class="stat-progress-bar" style="width:${typeof stat.value === 'number' && stat.value < 100 ? stat.value : 100}%"></div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </section>
+                
+                <section>
+                    <h2 class="section-title">Core Capabilities</h2>
+                    <div class="features-grid">
+                        ${[
+                            { icon: '🧠', title: 'Sentient AI Core', desc: 'Self-evolving neural architecture', badge: '99.9% Accuracy' },
+                            { icon: '⚡', title: 'Quantum Processing', desc: 'Unprecedented performance', badge: '10^15 ops/sec' },
+                            { icon: '🔒', title: 'Neural Security', desc: 'Military-grade encryption', badge: 'AES-512' },
+                            { icon: '🌐', title: 'Global Mesh Network', desc: '10,000+ nodes worldwide', badge: '< 1ms Latency' }
+                        ].map(f => `
+                            <div class="feature-card">
+                                <div class="feature-icon">${f.icon}</div>
+                                <h3 class="feature-title">${f.title}</h3>
+                                <p class="feature-desc">${f.desc}</p>
+                                <span class="feature-badge">${f.badge}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+                
+                <section class="terminal">
+                    <div class="terminal-header">
+                        <span class="terminal-dot red"></span>
+                        <span class="terminal-dot yellow"></span>
+                        <span class="terminal-dot green"></span>
+                        <span class="terminal-title">nexus@terminal ~ interactive</span>
+                    </div>
+                    <div class="terminal-body">
+                        ${state.terminalHistory.map(h => `
+                            <div class="terminal-line">
+                                <div><span class="terminal-prompt">nexus@system</span>:<span class="terminal-path">~</span>$ ${h.input}</div>
+                                ${h.output ? `<pre class="terminal-output" style="color:${h.color || '#9ca3af'}">${h.output}</pre>` : ''}
+                            </div>
+                        `).join('')}
+                        <div class="terminal-input-line">
+                            <span class="terminal-prompt">nexus@system</span>:<span class="terminal-path">~</span>$
+                            <input type="text" class="terminal-input" value="${state.terminalInput}" 
+                                oninput="state.terminalInput=this.value"
+                                onkeydown="if(event.key==='Enter' && this.value.trim()){handleTerminalCommand(this.value)}"
+                                placeholder="Type a command...">
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+
+        function renderImageGen() {
+            return `
+                <h2 class="section-title">🎨 AI Image Creation</h2>
+                ${state.demoMode ? `
+                    <div style="margin-bottom:1rem;padding:12px;background:rgba(255,170,0,0.15);border:1px solid rgba(255,170,0,0.4);border-radius:8px;text-align:center">
+                        <span style="color:#ffaa00;font-size:0.875rem">⚠️ Demo Mode Active</span>
+                        <span style="color:#9ca3af;font-size:0.75rem;display:block;margin-top:4px">Running standalone - Connect to Next.js server for real AI generation</span>
+                    </div>
+                ` : state.apiAvailable ? `
+                    <div style="margin-bottom:1rem;padding:8px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:8px;text-align:center">
+                        <span style="color:#00ff88;font-size:0.75rem">✓ AI Server Connected</span>
+                    </div>
+                ` : ''}
+                <div class="image-grid">
+                    <div class="image-card">
+                        <h3>Create Image</h3>
+                        <textarea class="image-textarea" placeholder="Describe the image you want to create..."
+                            oninput="state.imagePrompt=this.value">${state.imagePrompt}</textarea>
+                        <div class="style-buttons">
+                            ${['Photorealistic', 'Anime', '3D Render', 'Digital Art', 'Oil Painting', 'Watercolor'].map(s => `
+                                <button class="style-btn ${state.imageStyle === s ? 'active' : ''}" onclick="state.imageStyle='${s}';render()">${s}</button>
+                            `).join('')}
+                        </div>
+                        <div class="image-select-row">
+                            <select class="image-select" onchange="state.imageSize=this.value">
+                                <option value="1024x1024">1024 x 1024</option>
+                                <option value="768x1344">768 x 1344</option>
+                                <option value="1344x768">1344 x 768</option>
+                            </select>
+                        </div>
+                        ${state.imageError ? `<div class="image-error">⚠️ ${state.imageError}</div>` : ''}
+                        <button class="generate-btn" onclick="generateImage()" ${state.isGeneratingImage ? 'disabled' : ''}>
+                            ${state.isGeneratingImage ? '⏳ Generating...' : state.demoMode ? '✨ Generate (Demo)' : '✨ Generate Image'}
+                        </button>
+                    </div>
+                    <div class="image-card">
+                        <h3>Preview</h3>
+                        <div class="image-preview">
+                            ${state.isGeneratingImage ? `
+                                <div class="image-preview-content">
+                                    <div class="icon" style="animation:pulse 1s infinite">🎨</div>
+                                    <p>${state.demoMode ? 'Generating demo...' : 'Generating...'}</p>
+                                </div>
+                            ` : state.generatedImage ? `
+                                <img src="${state.generatedImage}" alt="Generated">
+                            ` : `
+                                <div class="image-preview-content">
+                                    <div class="icon">🖼️</div>
+                                    <p>Generated image will appear here</p>
+                                </div>
+                            `}
+                        </div>
+                        <div class="image-actions">
+                            <button onclick="generateImage()" ${!state.generatedImage || state.isGeneratingImage ? 'disabled' : ''}>🔄 Regenerate</button>
+                            <button onclick="if(state.generatedImage){const a=document.createElement('a');a.href=state.generatedImage;a.download='nexus-image.png';a.click()}" ${!state.generatedImage ? 'disabled' : ''}>⬇️ Download</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderChat() {
+            return `
+                <h2 class="section-title">💬 Neural Chat</h2>
+                <div class="chat-container">
+                    <div class="chat-contacts">
+                        <div class="contacts-header">
+                            <h3>Contacts</h3>
+                            <span class="online-badge">5 online</span>
+                        </div>
+                        ${[
+                            { name: 'AI Core', status: 'online', icon: '🤖' },
+                            { name: 'Quantum Team', status: 'online', icon: '⚛️' },
+                            { name: 'Security Ops', status: 'online', icon: '🔐' },
+                            { name: 'Dev Squad', status: 'away', icon: '👨‍💻' }
+                        ].map(c => `
+                            <div class="contact-item">
+                                <span class="contact-avatar">${c.icon}</span>
+                                <div class="contact-info">
+                                    <div class="contact-name">${c.name}</div>
+                                    <div class="contact-status">${c.status}</div>
+                                </div>
+                                <span class="contact-dot ${c.status === 'away' ? 'away' : ''}"></span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="chat-window">
+                        <div class="chat-header">
+                            <div class="chat-header-left">
+                                <span class="chat-header-avatar">🤖</span>
+                                <div>
+                                    <div class="chat-header-name">AI Core</div>
+                                    <div class="chat-header-status">Online • Quantum Neural Network</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-messages">
+                            ${state.chatMessages.map(m => `
+                                <div class="message ${m.role}">
+                                    <span class="message-avatar">${m.role === 'user' ? '👤' : '🤖'}</span>
+                                    <div>
+                                        <div class="message-content">${m.content}</div>
+                                        <div class="message-time">${m.time}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            ${state.isChatLoading ? `
+                                <div class="message assistant">
+                                    <span class="message-avatar">🤖</span>
+                                    <div class="typing-indicator"><span></span><span></span><span></span></div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="chat-input-area">
+                            <div class="chat-input-row">
+                                <input type="text" class="chat-input" placeholder="Type a message..."
+                                    value="${state.chatInput}"
+                                    oninput="state.chatInput=this.value"
+                                    onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendChatMessage()}">
+                                <button class="chat-send-btn" onclick="sendChatMessage()" ${state.isChatLoading || !state.chatInput.trim() ? 'disabled' : ''}>
+                                    ${state.isChatLoading ? '...' : 'Send'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderRadio() {
+            return `
+                <h2 class="section-title">📻 Radio Streaming</h2>
+                <div class="image-grid">
+                    <div style="display:contents">
+                        <div class="radio-player">
+                            <h3>Now Playing</h3>
+                            ${state.currentStation ? `
+                                <div class="now-playing">
+                                    <div class="station-icon">${state.currentStation.favicon ? `<img src="${state.currentStation.favicon}" style="width:64px;height:64px;object-fit:contain" onerror="this.parentElement.innerHTML='📻'">` : '📻'}</div>
+                                    <div class="station-info">
+                                        <div class="station-name">${state.currentStation.name}</div>
+                                        <div class="station-country">${state.currentStation.country}</div>
+                                        <div class="station-live">
+                                            ${state.isRadioPlaying ? '<div class="live-bars">' + Array(5).fill(0).map((_,i) => `<div class="live-bar" style="height:'+(8+Math.random()*12)+'px;animation-delay:${i*0.1}s"></div>`).join('') + '</div>' : ''}
+                                            <span>${state.isRadioPlaying ? '● LIVE' : state.isRadioLoading ? 'Loading...' : 'Stopped'}</span>
+                                        </div>
+                                    </div>
+                                    <div class="radio-controls">
+                                        <button class="radio-btn" onclick="if(state.audio){state.isRadioPlaying?state.audio.pause():state.audio.play();state.isRadioPlaying=!state.isRadioPlaying;render()}" ${state.isRadioLoading ? 'disabled' : ''}>${state.isRadioLoading ? '⏳' : state.isRadioPlaying ? '⏸️' : '▶️'}</button>
+                                        <button class="radio-btn stop" onclick="if(state.audio){state.audio.pause();state.audio=null}state.isRadioPlaying=false;state.currentStation=null;render()">⏹️</button>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div style="text-align:center;padding:32px">
+                                    <div style="font-size:3rem;margin-bottom:1rem">📻</div>
+                                    <p style="color:#6b7280">Select a station to start listening</p>
+                                </div>
+                            `}
+                            <div class="volume-control">
+                                <span>🔈</span>
+                                <input type="range" min="0" max="100" value="${state.radioVolume}" 
+                                    oninput="state.radioVolume=parseInt(this.value);if(state.audio)state.audio.volume=this.value/100">
+                                <span>🔊</span>
+                                <span style="font-size:0.75rem;color:#6b7280">${state.radioVolume}%</span>
+                            </div>
+                        </div>
+                        <div class="radio-player">
+                            <div class="station-search">
+                                <input type="text" placeholder="Search stations..." value="${state.radioSearch}" 
+                                    oninput="state.radioSearch=this.value"
+                                    onkeydown="if(event.key==='Enter')searchRadio(state.radioSearch)">
+                                <button class="search-btn" onclick="searchRadio(state.radioSearch)" ${state.isRadioLoading ? 'disabled' : ''}>🔍</button>
+                            </div>
+                            <div class="genre-tags">
+                                ${['Jazz', 'Rock', 'Pop', 'Classical', 'News', 'Electronic'].map(g => 
+                                    `<button class="genre-tag" onclick="state.radioSearch='${g}';searchRadio('${g}')">${g}</button>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="radio-player" style="margin-top:1.5rem">
+                    <h3>Stations ${state.radioStations.length > 0 ? `(${state.radioStations.length})` : ''}</h3>
+                    ${state.isRadioLoading ? `
+                        <div style="text-align:center;padding:32px">
+                            <div style="font-size:3rem;animation:pulse 1s infinite">📻</div>
+                            <p style="font-size:0.875rem;color:#6b7280;margin-top:0.5rem">Searching...</p>
+                        </div>
+                    ` : state.radioStations.length > 0 ? `
+                        <div class="stations-grid">
+                            ${state.radioStations.slice(0, 12).map(s => `
+                                <div class="station-card ${state.currentStation?.id === s.id ? 'active' : ''}" onclick="playStation({id:'${s.id}',name:'${s.name.replace(/'/g, "\\'")}',url:'${s.url}',favicon:'${s.favicon}',country:'${s.country}'})">
+                                    <div class="station-card-name">
+                                        <span>📻</span>
+                                        <span>${s.name}</span>
+                                    </div>
+                                    <div class="station-card-meta">
+                                        <span>${s.country}</span>
+                                        ${s.bitrate ? `<span class="bitrate">${s.bitrate}kbps</span>` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <div style="text-align:center;padding:32px">
+                            <p style="font-size:0.875rem;color:#6b7280">Search for stations to see results</p>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        function renderGame() {
+            return `
+                <h2 class="section-title">🎮 Game Studio</h2>
+                <div class="image-grid">
+                    <div style="grid-column: span 2">
+                        <div style="background:rgba(0,10,20,0.8);border:1px solid rgba(0,240,255,0.2);border-radius:12px;overflow:hidden">
+                            <div class="game-toolbar">
+                                <div class="game-toolbar-left">
+                                    <span>Scene: Level_01</span>
+                                    <span class="game-score">Score: ${state.gameScore}</span>
+                                </div>
+                                <div class="game-toolbar-right">
+                                    <button class="game-btn ${state.isGamePlaying ? 'pause' : 'play'}" onclick="${state.isGamePlaying ? 'stopGame()' : 'startGame()'}">${state.isGamePlaying ? '⏸️ Pause' : '▶️ Play'}</button>
+                                    <button class="game-btn stop" onclick="stopGame()">⏹️ Stop</button>
+                                </div>
+                            </div>
+                            <div class="game-canvas-container">
+                                <canvas id="gameCanvas" width="600" height="280" class="game-canvas"></canvas>
+                                ${!state.isGamePlaying ? `
+                                    <div class="game-overlay">
+                                        <div class="game-overlay-content">
+                                            <div class="icon">🎮</div>
+                                            <p>Press Play to start</p>
+                                            <p style="font-size:0.75rem;color:#4b5563">Arrow Keys/WASD + Space</p>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="image-grid" style="margin-top:1.5rem">
+                    <div class="hierarchy-card">
+                        <h3>📁 Hierarchy</h3>
+                        ${[
+                            { name: 'Player', type: 'player', icon: '🎮' },
+                            { name: 'Enemy_1', type: 'enemy', icon: '👾' },
+                            { name: 'Coin_1', type: 'coin', icon: '💰' }
+                        ].map(o => `
+                            <button class="hierarchy-item ${o.type}">${o.icon} ${o.name}</button>
+                        `).join('')}
+                    </div>
+                    <div class="build-card">
+                        <h3>📦 Build</h3>
+                        ${state.isBuilding ? `
+                            <div style="height:8px;background:rgba(0,240,255,0.1);border-radius:4px;overflow:hidden">
+                                <div style="height:100%;background:linear-gradient(90deg,#00f0ff,#ff00aa);width:${state.buildProgress}%"></div>
+                            </div>
+                            <p style="font-size:0.75rem;color:#6b7280;text-align:center;margin-top:8px">Building... ${state.buildProgress}%</p>
+                        ` : `
+                            ${['Windows', 'macOS', 'WebGL', 'Mobile'].map(p => `
+                                <button class="build-btn" onclick="buildGame('${p}')">📦 ${p}</button>
+                            `).join('')}
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAI() {
+            return `
+                <h2 class="section-title">🤖 AI Lab</h2>
+                <div class="ai-grid">
+                    <div>
+                        <div class="ai-card">
+                            <div class="ai-model-row">
+                                <h3 style="margin:0">AI Query Interface</h3>
+                                <select class="ai-select" onchange="state.selectedModel=this.value">
+                                    <option>GPT-5 Quantum</option>
+                                    <option>DALL-E 4</option>
+                                    <option>Codex Ultra</option>
+                                </select>
+                            </div>
+                            <textarea class="ai-textarea" placeholder="Enter your prompt..." 
+                                oninput="state.aiPrompt=this.value">${state.aiPrompt}</textarea>
+                            <div class="ai-actions">
+                                <button class="ai-btn ai-btn-primary" onclick="sendAiRequest()" ${state.isAiLoading || !state.aiPrompt.trim() ? 'disabled' : ''}>
+                                    ${state.isAiLoading ? '⏳ Processing...' : '🚀 Execute Query'}
+                                </button>
+                                <button class="ai-btn ai-btn-outline" onclick="state.aiPrompt='';state.aiResponse='';render()">Clear</button>
+                            </div>
+                        </div>
+                        <div class="ai-card" style="margin-top:1.5rem">
+                            <h3>Response</h3>
+                            <div class="ai-response">
+                                ${state.isAiLoading ? `
+                                    <div class="ai-response-placeholder">
+                                        <div><div class="icon" style="animation:pulse 1s infinite">🧠</div><p style="color:#00f0ff">Processing...</p></div>
+                                    </div>
+                                ` : state.aiResponse ? state.aiResponse : `
+                                    <div class="ai-response-placeholder">
+                                        <div><div class="icon">💭</div><p>AI response will appear here</p></div>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ai-card quick-prompts">
+                        <h4>Quick Prompts</h4>
+                        ${['Explain quantum computing', 'Write a Python script', 'Analyze this data', 'Debug this code'].map(p => `
+                            <button class="quick-prompt-btn" onclick="state.aiPrompt='${p}';render()">💡 ${p}</button>
+                        `).join('')}
+                        <h4 style="margin-top:1.5rem">Resources</h4>
+                        ${[
+                            { label: 'GPU Utilization', value: '67%', color: '#00f0ff' },
+                            { label: 'Memory', value: '12.4 GB', color: '#ff00aa' }
+                        ].map(r => `
+                            <div style="margin-bottom:12px">
+                                <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:4px">
+                                    <span style="color:#9ca3af">${r.label}</span>
+                                    <span style="color:${r.color}">${r.value}</span>
+                                </div>
+                                <div style="height:6px;background:rgba(0,240,255,0.1);border-radius:3px">
+                                    <div style="height:100%;background:${r.color};width:${parseInt(r.value)}%;border-radius:3px"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSystems() {
+            return `
+                <h2 class="section-title">System Components</h2>
+                <div class="systems-grid">
+                    ${[
+                        { name: 'Neural Core', status: 'Active', load: 78, icon: '🧠' },
+                        { name: 'Quantum Processor', status: 'Active', load: 92, icon: '⚡' },
+                        { name: 'Memory Banks', status: 'Active', load: 45, icon: '💾' },
+                        { name: 'Security Module', status: 'Active', load: 23, icon: '🔒' },
+                        { name: 'AI Subsystem', status: 'Active', load: 87, icon: '🤖' },
+                        { name: 'Data Pipeline', status: 'Standby', load: 0, icon: '📊' }
+                    ].map(s => `
+                        <div class="system-card">
+                            <div class="system-header">
+                                <span class="system-icon">${s.icon}</span>
+                                <span class="system-status ${s.status.toLowerCase()}">${s.status}</span>
+                            </div>
+                            <div class="system-name">${s.name}</div>
+                            <div class="system-load">
+                                <span class="system-load-label">Load:</span>
+                                <div class="system-load-bar">
+                                    <div class="system-load-fill ${s.load > 80 ? 'high' : s.load > 50 ? 'medium' : 'low'}" style="width:${s.load}%"></div>
+                                </div>
+                                <span class="system-load-value">${s.load}%</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function renderNetwork() {
+            return `
+                <h2 class="section-title">Network Overview</h2>
+                <div class="network-grid">
+                    <div class="network-card">
+                        <h3>Connection Status</h3>
+                        ${[
+                            { name: 'Primary Mesh', latency: '12ms', status: 'Connected' },
+                            { name: 'Backup Cluster', latency: '45ms', status: 'Standby' },
+                            { name: 'Global CDN', latency: '8ms', status: 'Connected' },
+                            { name: 'Quantum Link', latency: '<1ms', status: 'Connected' }
+                        ].map(c => `
+                            <div class="connection-row">
+                                <span class="connection-name">${c.name}</span>
+                                <div class="connection-info">
+                                    <span class="connection-latency">${c.latency}</span>
+                                    <span class="connection-status ${c.status.toLowerCase()}">${c.status}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="network-card">
+                        <h3>Traffic Statistics</h3>
+                        <div class="stat-row">
+                            <span class="stat-row-label">Inbound</span>
+                            <span class="stat-row-value in">2.4 GB/s</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-row-label">Outbound</span>
+                            <span class="stat-row-value out">1.8 GB/s</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-row-label">Active Connections</span>
+                            <span class="stat-row-value highlight">12,847</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSettings() {
+            return `
+                <h2 class="section-title">System Settings</h2>
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>Performance</h3>
+                        ${[
+                            { key: 'neuralPower', label: 'Neural Processing Power', color: '#00f0ff' },
+                            { key: 'quantumAllocation', label: 'Quantum Core Allocation', color: '#ff00aa' },
+                            { key: 'memoryCache', label: 'Memory Cache Size', color: '#00ff88' }
+                        ].map(s => `
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <span>${s.label}</span>
+                                    <span style="color:${s.color}">${state.settings[s.key]}%</span>
+                                </div>
+                                <input type="range" class="setting-slider" min="0" max="100" value="${state.settings[s.key]}"
+                                    oninput="updateSetting('${s.key}',parseInt(this.value))"
+                                    style="background:linear-gradient(to right, ${s.color} ${state.settings[s.key]}%, rgba(0,240,255,0.2) ${state.settings[s.key]}%)">
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="settings-card">
+                        <h3>Security</h3>
+                        ${[
+                            { key: 'biometric', label: 'Biometric Authentication' },
+                            { key: 'quantumEncryption', label: 'Quantum Encryption' },
+                            { key: 'intrusionDetection', label: 'Intrusion Detection' },
+                            { key: 'autoUpdate', label: 'Auto-Update Security' }
+                        ].map(s => `
+                            <div class="toggle-row">
+                                <span class="toggle-label">${s.label}</span>
+                                <button class="toggle ${state.settings[s.key] ? 'active' : ''}" onclick="updateSetting('${s.key}', !state.settings['${s.key}'])"></button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="settings-actions">
+                    <button class="btn btn-outline" onclick="resetSettings()">Reset Defaults</button>
+                    <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+                </div>
+            `;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            runBoot();
+        });
+    </script>
+</body>
+</html>

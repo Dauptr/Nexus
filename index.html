@@ -215,8 +215,9 @@
     const Utils = {
       escape(str) {
         if (typeof str !== 'string') return str;
-        const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;', '/': '&#x2F;' };
-        return str.replace(/[&<>"'/]/g, char => escapeMap[char]);
+        // Removed '/' from escaping to prevent breaking URLs
+        const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
+        return str.replace(/[&<>"']/g, char => escapeMap[char]);
       },
       sanitize(str) {
         if (typeof str !== 'string') return '';
@@ -581,9 +582,9 @@
           <div id="art-gallery" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start">
             ${S.artImgs.map((img,i)=>`
               <div class="cyber-card" style="padding:5px;position:relative;overflow:hidden;border:1px solid rgba(255,0,170,0.2)">
-                <img src="${Utils.escape(img.u)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px" loading="lazy">
+                <img src="${img.u}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px" loading="lazy">
                 <div style="position:absolute;bottom:5px;left:5px;right:5px;display:flex;gap:5px">
-                   <button class="art-download cyber-btn" data-url="${Utils.escape(img.u)}" style="flex:1;padding:5px;font-size:9px;background:rgba(0,0,0,0.8);color:#fff">⬇️ Save</button>
+                   <button class="art-download cyber-btn" data-url="${img.u}" style="flex:1;padding:5px;font-size:9px;background:rgba(0,0,0,0.8);color:#fff">⬇️ Save</button>
                    <button class="art-copy cyber-btn" data-prompt="${Utils.escape(img.prompt)}" style="flex:1;padding:5px;font-size:9px;background:rgba(0,0,0,0.8);color:#fff">📋 Copy</button>
                 </div>
               </div>
@@ -971,11 +972,11 @@
               if (typeof res === 'string') {
                 url = res;
               } 
-              // Check for object with url property
+              // Check for object with url property (Puter File object often has this)
               else if (res && res.url) {
                 url = res.url;
               } 
-              // Check for Blob/File object (common in Puter.js)
+              // Check for Blob/File object (Binary data)
               else if (res instanceof Blob) {
                 url = URL.createObjectURL(res);
               }

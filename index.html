@@ -403,22 +403,19 @@
       clear: { output: '', clear: true }
     };
     
-    // Expanded Model Lists
+    // FIXED: Models defaults to free/unlimited Puter tiers
     const PUTER_MODELS = [
-      { id: 'gpt-5-nano', name: 'GPT-5 Nano (Fast)' },
+      { id: 'gpt-5-nano', name: 'GPT-5 Nano (Fast/Free)' },
       { id: 'gpt-5.1', name: 'GPT-5.1' },
       { id: 'gpt-5.2', name: 'GPT-5.2' },
-      { id: 'gpt-5.2-chat', name: 'GPT-5.2 Chat' },
-      { id: 'gpt-5.2-pro', name: 'GPT-5.2 Pro (OpenRouter)' }
+      { id: 'gpt-5.2-chat', name: 'GPT-5.2 Chat' }
     ];
 
     const PUTER_ART_MODELS = [
+        { id: 'gpt-image-1.5', name: 'GPT Image 1.5 (Free)' },
         { id: 'dall-e-3', name: 'DALL-E 3 (Photorealistic)' },
         { id: 'stable-diffusion-xl', name: 'SDXL (High Quality)' },
-        { id: 'realistic-vision', name: 'Realistic Vision (Photo)' },
-        { id: 'gpt-image-1.5', name: 'GPT Image 1.5' },
-        { id: 'midjourney-style', name: 'Midjourney Style' },
-        { id: 'anime-model', name: 'Anime/Art Style' }
+        { id: 'realistic-vision', name: 'Realistic Vision (Photo)' }
     ];
 
     let state = {
@@ -437,13 +434,13 @@
         customEndpoint: '',
         customKey: '',
         puterChatModel: 'gpt-5-nano',
-        puterArtModel: 'dall-e-3'
+        puterArtModel: 'gpt-image-1.5'
       },
       terminalHistory: [{ input: 'welcome', output: 'Welcome to NEXUS OS. Type "help" for commands.', color: '#00f0ff' }],
       artImages: [], artPrompt: '', artLoading: false,
       activeFeature: null,
       chatHistory: [],
-      editingImage: null // Stores the URL of the image being edited
+      editingImage: null
     };
     
     function loadSettings() {
@@ -716,7 +713,7 @@
         if (!window.puter || !window.puter.ai) throw new Error("Puter.js not loaded.");
         const options = {};
         if (state.settings.puterChatModel) options.model = state.settings.puterChatModel;
-        if (state.settings.puterChatModel === 'gpt-5.2-pro') options.driver = 'openrouter';
+        // Removed explicit driver to allow Puter to use its free/unlimited default
         const finalPrompt = systemPrompt ? `${systemPrompt}\n\nUser: ${prompt}` : prompt;
         const resp = await window.puter.ai.chat(finalPrompt, options);
         return typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
@@ -880,10 +877,9 @@
       }
     }
     
-    // Function to handle editing/refining an existing image
     async function refineImage(imgUrl) {
       state.editingImage = imgUrl;
-      state.artPrompt = ""; // Clear prompt for new instructions
+      state.artPrompt = ""; 
       renderMain();
       document.getElementById('art-prompt').focus();
       showNotification("Describe changes to refine image");
@@ -894,7 +890,6 @@
       renderMain();
     }
 
-    // Function to trigger download
     function downloadImage(url) {
       const a = document.createElement('a');
       a.href = url;
@@ -925,11 +920,8 @@
         
         let finalPrompt = state.artPrompt;
 
-        // If we are in "Edit Mode", we use Vision AI to analyze the image first
         if (state.editingImage) {
           updateArtProgressDOM(20, 'Analyzing Source Image...');
-          
-          // Use Vision AI to understand the current image
           const visionPrompt = `Analyze this image. The user wants to change: "${state.artPrompt}". 
           Generate a new image generation prompt that incorporates these changes into the original image description. 
           Return ONLY the new prompt text, nothing else.`;
@@ -964,7 +956,7 @@
           updateArtProgressDOM(100, 'Complete!');
           state.artImages.unshift(url);
           showNotification('🎨 Image generated!');
-          state.editingImage = null; // Reset edit mode
+          state.editingImage = null; 
         } else {
           throw new Error("Empty image URL received.");
         }
@@ -1002,7 +994,7 @@
     function updateSetting(key, value) { state.settings[key] = value; saveSettingsToStorage(); renderMain(); }
     function toggleSetting(key) { state.settings[key] = !state.settings[key]; saveSettingsToStorage(); renderMain(); }
     function resetSettings() { 
-      state.settings = { neuralPower: 75, quantumAllocation: 60, memoryCache: 50, biometric: true, quantumEncryption: true, intrusionDetection: true, autoUpdate: false, aiProvider: 'puter', groqKey: '', customEndpoint: '', customKey: '', puterChatModel: 'gpt-5-nano', puterArtModel: 'dall-e-3' }; 
+      state.settings = { neuralPower: 75, quantumAllocation: 60, memoryCache: 50, biometric: true, quantumEncryption: true, intrusionDetection: true, autoUpdate: false, aiProvider: 'puter', groqKey: '', customEndpoint: '', customKey: '', puterChatModel: 'gpt-5-nano', puterArtModel: 'gpt-image-1.5' }; 
       saveSettingsToStorage();
       showNotification('Settings reset to defaults'); renderMain(); 
     }

@@ -226,6 +226,19 @@
     
     .modal-body { padding: 24px; overflow-y: auto; flex-grow: 1; }
     
+    /* Documentation */
+    .doc-container {
+      background: rgba(0, 10, 20, 0.6); border: 1px solid var(--border);
+      border-radius: 12px; padding: 2rem; max-width: 900px; margin: 0 auto; text-align: left;
+    }
+    .doc-container h1 { font-size: 2rem; color: var(--cyan); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    .doc-container h2 { font-size: 1.5rem; color: var(--magenta); margin-top: 2rem; margin-bottom: 1rem; }
+    .doc-container p { margin-bottom: 1rem; line-height: 1.6; }
+    .doc-container ul { margin-left: 2rem; margin-bottom: 1rem; }
+    .doc-container li { margin-bottom: 0.5rem; }
+    .doc-container code { background: #000; padding: 2px 6px; border-radius: 4px; color: var(--green); }
+    .doc-container pre { background: #000; padding: 1rem; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); margin-bottom: 1rem; }
+
     /* Feature Specific UI Components */
     .ai-chat-container { display: flex; flex-direction: column; height: 300px; }
     .ai-messages { flex-grow: 1; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: rgba(0,0,0,0.3); }
@@ -285,9 +298,7 @@
     .settings-buttons { display: flex; justify-content: flex-end; gap: 1rem; }
     
     /* Art Studio Specifics */
-    .art-controls {
-      display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
-    }
+    .art-controls { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .art-text-input { flex: 2; min-width: 200px; padding: 14px 16px; background: rgba(0, 0, 0, 0.6); border: 1px solid var(--border); border-radius: 8px; color: #fff; font-family: inherit; font-size: 14px; }
     .art-text-input:focus { border-color: var(--cyan); outline: none; box-shadow: 0 0 15px rgba(0, 240, 255, 0.2); }
     .art-model-select { flex: 1; min-width: 150px; padding: 14px; border-radius: 8px; background: #000; border: 1px solid var(--border); color: var(--cyan); font-family: inherit; }
@@ -529,6 +540,7 @@
         case 'Art Studio': main.innerHTML = renderArtStudio(); break;
         case 'Terminal': main.innerHTML = renderTerminal(); break;
         case 'Settings': main.innerHTML = renderSettings(); break;
+        case 'Documentation': main.innerHTML = renderDocumentation(); break;
         default: main.innerHTML = renderDashboard();
       }
     }
@@ -540,7 +552,7 @@
           <p>${state.systemActive ? 'All quantum neural pathways are active. System fully operational.' : 'The world\'s first sentient operating system. Powered by quantum computing.'}</p>
           <div class="hero-buttons">
             <button class="btn btn-primary" onclick="initializeSystem()" ${state.systemActive ? 'disabled' : ''}>${state.systemActive ? '✓ SYSTEM ACTIVE' : 'Initialize System'}</button>
-            <button class="btn btn-secondary">View Documentation</button>
+            <button class="btn btn-secondary" onclick="navigate('Documentation')">View Documentation</button>
           </div>
         </section>
         <h2 class="section-title">System Statistics</h2>
@@ -614,6 +626,56 @@
             </div>
           `).join('')}
         </div>`;
+    }
+
+    function renderDocumentation() {
+        return `
+          <div class="doc-container">
+            <h1>NEXUS OS v9.0 Documentation</h1>
+            <p><strong>Version:</strong> 9.0.0 | <strong>Provider:</strong> Puter.js (Default) | <strong>Status:</strong> Open Source</p>
+            
+            <h2>🚀 Overview</h2>
+            <p>NEXUS OS is a sentient operating system interface designed for cyberpunk enthusiasts and power users. It integrates quantum computing simulations, AI-driven security, and generative art tools into a seamless dashboard experience.</p>
+            
+            <h2>🧠 Core Features</h2>
+            <ul>
+              <li><strong>Sentient AI Core:</strong> Multi-provider chat interface supporting Puter (Free), Groq, and Custom OpenAI-compatible endpoints.</li>
+              <li><strong>Art Studio:</strong> Generate, refine, and edit images using AI. Supports DALL-E 3, Stable Diffusion XL, and GPT-Image models.</li>
+              <li><strong>Quantum Processing:</strong> Simulated benchmarks running on AI backends to test theoretical compute loads.</li>
+              <li><strong>Neural Security:</strong> AI-driven system scanning simulation for threat detection.</li>
+            </ul>
+
+            <h2>⚙️ Configuration</h2>
+            <p>Navigate to <code>Settings</code> to configure your AI providers:</p>
+            <ul>
+              <li><strong>Puter (Default):</strong> Works out of the box with no API keys. Unlimited usage for supported models.</li>
+              <li><strong>Groq API:</strong> For ultra-fast inference. Requires a Groq API key.</li>
+              <li><strong>Custom Endpoint:</strong> Compatible with OpenAI clones like Z.ai or local LLM servers.</li>
+            </ul>
+
+            <h2>🎨 Art Studio Usage</h2>
+            <p>1. Select a model from the dropdown (e.g., <code>DALL-E 3</code> for photorealism, <code>SDXL</code> for art).</p>
+            <p>2. Enter your prompt and click <strong>Create</strong>.</p>
+            <p>3. Hover over generated images to <strong>Edit/Refine</strong> or <strong>Download</strong>.</p>
+            <p>4. The "Refine" feature uses Vision AI to understand the current image and apply your requested changes.</p>
+
+            <h2>💻 Terminal Commands</h2>
+            <pre>
+help     - List available commands
+status   - Check system vitals
+neofetch - Display system info
+clear    - Clear terminal history
+about    - About NEXUS OS
+            </pre>
+
+            <h2>⚠️ Troubleshooting</h2>
+            <p><strong>Image Generation Slow?</strong> The default Puter provider uses shared resources. For faster generation, switch to Groq or a dedicated API in Settings.</p>
+            <p><strong>Balances/Errors?</strong> Ensure you are using the default free models (<code>gpt-5-nano</code>, <code>gpt-image-1.5</code>) to avoid paid tier restrictions.</p>
+            
+            <br>
+            <p style="text-align:center; color:var(--cyan);">NEXUS Corporation &copy; 2024</p>
+          </div>
+        `;
     }
     
     function renderTerminal() {
@@ -713,7 +775,7 @@
         if (!window.puter || !window.puter.ai) throw new Error("Puter.js not loaded.");
         const options = {};
         if (state.settings.puterChatModel) options.model = state.settings.puterChatModel;
-        // Removed explicit driver to allow Puter to use its free/unlimited default
+        // FIX: Removed explicit driver to allow Puter to use its free/unlimited default
         const finalPrompt = systemPrompt ? `${systemPrompt}\n\nUser: ${prompt}` : prompt;
         const resp = await window.puter.ai.chat(finalPrompt, options);
         return typeof resp === 'string' ? resp : resp?.message?.content || JSON.stringify(resp);
